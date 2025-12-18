@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <M5Core2.h>
 
 void setup()
@@ -27,9 +28,37 @@ void setup()
       M5.Lcd.drawLine(x + t, 0, x + t, M5.Lcd.height(), color);
     }
   }
+
+  // LittleFSのマウント
+  if (!LittleFS.begin())
+  {
+    M5.Lcd.println("LittleFS mount failed");
+    M5.Lcd.fillScreen(0x2104);
+    delay(2000);
+    return;
+  }
 }
 
 void loop()
 {
-
+  static uint8_t fontIndex = 0;
+  String fonts[] = {"font_Yusei24", "font_DotGoth16"};
+  M5.update();
+  if (M5.BtnA.wasPressed())
+  {
+    fontIndex = (fontIndex + 1) % 2;
+    M5.Lcd.fillScreen(BLACK);
+    try
+    {
+      M5.Lcd.loadFont(fonts[fontIndex], LittleFS);
+      M5.Lcd.setCursor(0, 0);
+      M5.Lcd.print("適切な気温です。");
+    }
+    catch (...)
+    {
+      M5.Lcd.println("Font load error");
+      M5.Lcd.fillScreen(0x2104);
+      delay(2000);
+    }
+  }
 }

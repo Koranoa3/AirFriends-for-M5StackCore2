@@ -1,6 +1,15 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <LittleFS.h>
 #include <M5Core2.h>
+#include <MHZ19_uart.h>
+#include "BME680Sensor.hpp"
+
+const int rx_pin = 13; // Serial rx pin no
+const int tx_pin = 14; // Serial tx pin no
+
+MHZ19_uart mhz19;
+BME680Sensor bme;
 
 void setup()
 {
@@ -37,28 +46,83 @@ void setup()
     delay(2000);
     return;
   }
+
+  // I2C初期化
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.println("I2C Check (GPIO21/22)...");
+
+  Wire.begin(21, 22);
+  Wire.setClock(100000);
+  delay(100);
+
+  // I2Cスキャン
+  int deviceCount = 0;
+  for (uint8_t addr = 1; addr < 127; addr++)
+  {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0)
+    {
+      M5.Lcd.printf("Found: 0x%02X\n", addr);
+      deviceCount++;
+      delay(10);
+    }
+  }
+  M5.Lcd.printf("Devices: %d\n", deviceCount);
+  delay(1000);
+
+  // BME680初期化 (0x77のみ)
+  M5.Lcd.println("BME680 Init (0x77)...");
+  if (bme.begin())
+  {
+    M5.Lcd.println("BME680 OK!");
+  }
+  else
+  {
+    M5.Lcd.println("BME680 FAILED!");
+  }
+  delay(2000);
+
+  // MH-Z19 CO2センサーの初期化
+  mhz19.begin(rx_pin, tx_pin);
+  mhz19.setAutoCalibration(false);
+
+  M5.Lcd.println("MH-Z19 is warming up now.");
+  delay(10 * 1000);
+
+  // フォントのロード
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.loadFont("font_Yusei24", LittleFS);
 }
 
 void loop()
 {
-  static uint8_t fontIndex = 0;
-  String fonts[] = {"font_Yusei24", "font_DotGoth16"};
   M5.update();
-  if (M5.BtnA.wasPressed())
+
+  M5.Lcd.fillScreen(BLACK);
+  // BME680からデータを取得
+  if (bme.read())
   {
-    fontIndex = (fontIndex + 1) % 2;
-    M5.Lcd.fillScreen(BLACK);
-    try
-    {
-      M5.Lcd.loadFont(fonts[fontIndex], LittleFS);
-      M5.Lcd.setCursor(0, 0);
-      M5.Lcd.print("適切な気温です。");
-    }
-    catch (...)
-    {
-      M5.Lcd.println("Font load error");
-      M5.Lcd.fillScreen(0x2104);
-      delay(2000);
-    }
+    float temperature = bme.temperature();
+    float humidity = bme.humidity();
+
+    // 気温を表示
+    M5.Lcd.setCursor(10, 50);
+    M5.Lcd.print("温度 ");
+    M5.Lcd.print(temperature, 1);
+    M5.Lcd.print(" ℃");
+
+    // 湿度を表示
+    M5.Lcd.setCursor(10, 100);
+    M5.Lcd.print("湿度 ");
+    M5.Lcd.print(humidity, 1);
+    M5.Lcd.print(" ％");
   }
+  // CO2濃度を取得
+  int co2ppm = mhz19.getCO2PPM();
+  M5.Lcd.setCursor(10, 150);
+  M5.Lcd.print("CO2 ");
+  M5.Lcd.print(co2ppm);
+  M5.Lcd.print(" ppm");
+
+  delay(5000);
 }

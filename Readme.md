@@ -42,3 +42,9 @@ GPIOは未確定。CO2センサの接続方法が確立次第、追記予定。
 3. PlatformIOでプロジェクトを開く
 4. 必要なライブラリをインストール
 5. data/フォルダ内に必要なファイルを配置(data/README参照)
+
+## dependencies
+
+- M5Stack Core2 Library
+- Adafruit BME680 Library
+- mhz19_uart (https://github.com/nara256/mhz19_uart)
